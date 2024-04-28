@@ -1,0 +1,278 @@
+function uploadImage() {
+    document.getElementById('image-upload-form').submit();
+}
+
+
+document.addEventListener('DOMContentLoaded', function () {
+    changeMainImage();
+    document.querySelector('#resetButton').addEventListener('click', function () {
+        document.querySelector('#main-image').src = current_image_url;
+        document.getElementById('featuresDiv').innerHTML = '';
+    });
+
+});
+
+
+// Function to change the main image
+function changeMainImage() {
+    // Get the value of the 'img' URL variable
+    const urlParams = new URLSearchParams(window.location.search);
+    const imgUrl = urlParams.get('img');
+
+    // If 'img' URL variable is present, update the image source
+    if (imgUrl) {
+        const mainImage = document.querySelector('.container-div img');
+        current_image_url = static_images_url + imgUrl;
+        mainImage.src = current_image_url
+    }
+}
+
+// Event listener for 'popstate' event
+window.addEventListener('popstate', function () {
+    changeMainImage();
+});
+
+
+document.addEventListener("DOMContentLoaded", function () {
+    function fillFeaturesDiv(text, isHtmlText = false) {
+        if (isHtmlText) {
+            document.getElementById('featuresDiv').innerHTML += text;
+        } else {
+            document.getElementById('featuresDiv').innerHTML += '<div><p class="fw-bold d-inline">' + text[0] + '</p> ' + text[1] + '</div>'
+        }
+    }
+
+
+    document.querySelector('#grayScaleButton').addEventListener('click', function () {
+        // Get the URL of the uploaded image
+        var imageUrl = document.querySelector('#main-image').src
+
+        // get the substring after the last slash
+        imageUrl = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
+
+
+        // Get the CSRF token from the cookie
+        var csrftoken = getCookie('csrftoken');
+
+        // Make an AJAX request to the Django endpoint to convert the image to grayscale
+        fetch(convertToGrayscaleURL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify({image_url: imageUrl})
+        })
+            .then(response => response.json())
+            .then(data => {
+                // Once the response is received, update the image source with the grayscale image
+                document.querySelector('#main-image').src = data.grayscale_image_path;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+    });
+
+    document.querySelector('#haralickButton').addEventListener('click', function () {
+        // Get the URL of the uploaded image
+        var imageUrl = document.querySelector('#main-image').src
+
+        // get the substring after the last slash
+        imageUrl = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
+
+
+        // Get the CSRF token from the cookie
+        var csrftoken = getCookie('csrftoken');
+
+        // Make an AJAX request to the Django endpoint to convert the image to grayscale
+        fetch(generateHaralickFeaturesURL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify({image_url: imageUrl})
+        })
+            .then(response => response.json())
+            .then(data => {
+                // Once the response is received, update the image source with the grayscale image
+                console.log(data.img_path)
+                document.querySelector('#main-image').src = data.img_path;
+
+                document.getElementById('featuresDiv').innerHTML = '';
+                fillFeaturesDiv(['Contrast: ', data.contrast]);
+                fillFeaturesDiv(['Dissimilarity: ', data.dissimilarity]);
+                fillFeaturesDiv(['Homogeneity: ', data.homogeneity]);
+                fillFeaturesDiv(['Energy: ', data.energy]);
+                fillFeaturesDiv(['Correlation: ', data.correlation]);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+    });
+});
+
+// Function to get the CSRF token from the cookie
+function getCookie(name) {
+    var cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        var cookies = document.cookie.split(';');
+        for (var i = 0; i < cookies.length; i++) {
+            var cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function initChartDiv() {
+    document.getElementById('featuresDiv').innerHTML =
+        '<div className="graph-container text-center w-100" style="width: 400px !important;" id="chartDiv"> <canvas className="text-center w-100" id="myChart"style="max-width: 1000px; height: 500px !important; width: 400px !important;"></canvas> </div> <div className="text-center align-content-center w-100 mt-1" style="width: 400px !important;" id="highestValues"> </div>';
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    document.querySelector('#histogramButton').addEventListener('click', function () {
+        initChartDiv();
+        // Get the URL of the uploaded image
+        var imageUrl = document.querySelector('#main-image').src;
+
+        // Get the substring after the last slash
+        imageUrl = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
+
+        // Get the CSRF token from the cookie
+        var csrftoken = getCookie('csrftoken');
+
+        // Make an AJAX request to the Django endpoint to generate the histogram data
+        fetch(generateHistogram, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify({image_url: imageUrl})
+        })
+            .then(response => response.json())
+            .then(data => {
+                console.log(data);
+
+                // Once the response is received, create the histogram chart
+                if (data.imgType === 'grayscale') {
+                    createHistogramChartGrayScale(data.histogram);
+                } else {
+                    createHistogramChartHSV(data.histogram_h, data.histogram_s, data.histogram_v);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+    });
+});
+
+function createHistogramChartHSV(histogramH, histogramS, histogramV) {
+    initChartDiv();
+    // Define labels for histogram bins (intensity levels)
+    var labels = Array.from(Array(256).keys());
+
+    // Create the dataset
+    var datasetH = {
+        label: 'Hue',
+        backgroundColor: 'rgba(255, 99, 132)',
+        borderColor: 'rgb(255, 99, 132)',
+        data: histogramH
+    };
+
+    var datasetS = {
+        label: 'Saturation',
+        backgroundColor: 'rgba(54, 162, 235, 1)',
+        borderColor: 'rgb(54, 162, 235)',
+        data: histogramS
+    };
+
+    var datasetV = {
+        label: 'Value',
+        backgroundColor: 'rgba(255, 206, 86, 1)',
+        borderColor: 'rgb(255, 206, 86)',
+        data: histogramV
+    };
+
+    // Configuration options for the chart
+    var options = {
+        scales: {
+            x: {
+                beginAtZero: true // Ensure the x-axis starts at zero
+            },
+            y: {
+                beginAtZero: true // Ensure the y-axis starts at zero
+            }
+        }
+    };
+
+    // Create the data object
+    var data = {
+        labels: labels,
+        datasets: [datasetH, datasetS, datasetV]
+    };
+
+    // Get the canvas element
+    var ctx = document.getElementById('myChart').getContext('2d');
+
+    // Create the chart
+    var histogramChart = new Chart(ctx, {
+        type: 'bar',
+        data: data,
+        options: options
+    });
+    let indexMaxValueH = histogramH.indexOf(Math.max(...histogramH));
+    let indexMaxValueS = histogramS.indexOf(Math.max(...histogramS));
+    let indexMaxValueV = histogramV.indexOf(Math.max(...histogramV));
+    document.getElementById('highestValues').innerHTML = '<div><p class="fw-bold d-inline"> Highest amount of Hue:</p> (' + indexMaxValueH + ', ' + histogramH[indexMaxValueH] + ')</div>';
+    document.getElementById('highestValues').innerHTML += '<div><p class="fw-bold d-inline"> Highest amount of Saturation:</p> (' + indexMaxValueS + ', ' + histogramS[indexMaxValueS] + ')</div>';
+    document.getElementById('highestValues').innerHTML += '<div><p class="fw-bold d-inline"> Highest amount of Value:</p> (' + indexMaxValueV + ', ' + histogramV[indexMaxValueV] + ')</div>';
+}
+
+// Function to create the histogram chart
+function createHistogramChartGrayScale(histogramData) {
+    initChartDiv();
+
+    // Define labels for histogram bins (intensity levels)
+    var labels = Array.from(Array(256).keys());
+
+    // Create the dataset
+    var dataset = {
+        label: 'Gray Scale',
+        backgroundColor: 'rgba(255, 99, 132, 0.5)',
+        borderColor: 'rgb(255, 99, 132)',
+        data: histogramData
+    };
+
+    // Configuration options for the chart
+    var options = {
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    };
+
+    // Create the data object
+    var data = {
+        labels: labels,
+        datasets: [dataset]
+    };
+
+    // Get the canvas element
+    var ctx = document.getElementById('myChart').getContext('2d');
+
+    // Create the chart
+    var histogramChart = new Chart(ctx, {
+        type: 'bar',
+        data: data,
+        options: options
+    });
+    // Get the text element #highestValue and change its text to "Highest Value: (" index + ',' + highestValue + ')'
+    let indexMaxValue = histogramData.indexOf(Math.max(...histogramData));
+    document.getElementById('highestValues').innerHTML = '<p class="fw-bold d-inline"> Highest Value:</p> (' + indexMaxValue + ', ' + histogramData[indexMaxValue] + ')';
+}
