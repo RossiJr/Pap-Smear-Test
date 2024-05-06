@@ -55,3 +55,40 @@ def haralick_gray_scale(image: Image):
 
     return {'contrast': contrast[0, 0], 'dissimilarity': dissimilarity[0, 0], 'homogeneity': homogeneity[0, 0],
             'energy': energy[0, 0], 'correlation': correlation[0, 0], 'image': gray_image}
+
+
+def calculate_hu_moments(image_url: str, type: str):
+    # If the image is colored, call __calculate_hu_moments_color
+    if type == 'color':
+        return __calculate_hu_moments_color(image_url)
+    # If the image is grayscale, call __calculate_hu_moments_gray
+    elif type == 'gray':
+        return __calculate_hu_moments_gray(image_url)
+
+
+def __calculate_hu_moments_color(image_path: str):
+    image = cv2.imread(image_path)
+
+    b, g, r = cv2.split(image)
+
+    # Calculate Hu moments for each channel
+    hu_moments_b = cv2.HuMoments(cv2.moments(b)).flatten()
+    hu_moments_g = cv2.HuMoments(cv2.moments(g)).flatten()
+    hu_moments_r = cv2.HuMoments(cv2.moments(r)).flatten()
+
+    return hu_moments_b, hu_moments_g, hu_moments_r
+
+
+def __calculate_hu_moments_gray(image_path: str):
+    image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+
+    # Convert the image to binary using adaptive thresholding
+    binary = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 11, 2)
+
+    # Calculate the central moments
+    central_moments = cv2.moments(binary)
+
+    # Calculate the Hu moments
+    hu_moments = cv2.HuMoments(central_moments)
+
+    return binary, hu_moments

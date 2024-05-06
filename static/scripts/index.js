@@ -42,6 +42,75 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 
+    document.querySelector('#huMomentsGrayButton').addEventListener('click', function () {
+        // Get the URL of the uploaded image
+        var imageUrl = document.querySelector('#main-image').src
+
+        // get the substring after the last slash
+        imageUrl = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
+        var csrftoken = getCookie('csrftoken');
+
+        // Make an AJAX request to the Django endpoint to convert the image to grayscale
+        fetch(huMoments, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify({image_url: imageUrl, type: 'gray'})
+        })
+            .then(response => response.json())
+            .then(data => {
+                // Once the response is received, update the image source with the grayscale image
+                // document.querySelector('#main-image').src = data.grayscale_image_path;
+                document.querySelector('#main-image').src = data.binary_image_path;
+                document.getElementById('featuresDiv').innerHTML = '';
+                // print the type of the data.hu_moments[0] element
+                for (let i = 0; i < data.hu_moments.length; i++) {
+                    fillFeaturesDiv(['Hu Moment ' + i + ': ', data.hu_moments[i]]);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+    });
+
+    document.querySelector('#huMomentsColorButton').addEventListener('click', function () {
+        // Get the URL from the image selected in the URL
+        var imageUrl = current_image_url;
+
+        // get the substring after the last slash
+        imageUrl = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
+        var csrftoken = getCookie('csrftoken');
+
+        // Make an AJAX request to the Django endpoint to convert the image to grayscale
+        fetch(huMoments, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify({image_url: imageUrl, type: 'color'})
+        })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('featuresDiv').innerHTML = '';
+                // print the type of the data.hu_moments[0] element
+                for (let i = 0; i < data.hu_moments_b.length; i++) {
+                    fillFeaturesDiv(['Hu Moment B' + i + ': ', data.hu_moments_b[i]]);
+                }
+                for (let i = 0; i < data.hu_moments_g.length; i++) {
+                    fillFeaturesDiv(['Hu Moment G' + i + ': ', data.hu_moments_g[i]]);
+                }
+                for (let i = 0; i < data.hu_moments_r.length; i++) {
+                    fillFeaturesDiv(['Hu Moment R' + i + ': ', data.hu_moments_r[i]]);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+    });
+
 
     document.querySelector('#grayScaleButton').addEventListener('click', function () {
         // Get the URL of the uploaded image
@@ -81,7 +150,7 @@ document.addEventListener("DOMContentLoaded", function () {
         imageUrl = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
 
 
-        // Get the CSRF token from the cookie
+        // Get the CSRF token from cthe cookie
         var csrftoken = getCookie('csrftoken');
 
         // Make an AJAX request to the Django endpoint to convert the image to grayscale

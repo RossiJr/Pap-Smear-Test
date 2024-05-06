@@ -1,15 +1,13 @@
 import cv2
 from PIL import Image
-from django.contrib.sites import requests
 from django.http import HttpResponseRedirect, JsonResponse, HttpResponse
 from django.shortcuts import render
 import os
 import json
-
-from io import BytesIO
+import numpy as np
 
 from Test import settings
-from operations.image_manipulation import convert_image_to_gray_scale, generate_image_histogram, haralick_gray_scale
+import operations.image_manipulation as im
 
 
 def myview(request):
@@ -51,7 +49,7 @@ def convert_to_grayscale(request):
         img = Image.open(os.path.join(str(settings.BASE_DIR), "static", "images", image_url))
 
         # Convert the image to grayscale
-        grayscale_img = convert_image_to_gray_scale(img)
+        grayscale_img = im.convert_image_to_gray_scale(img)
 
         # Define the path where you want to save the grayscale image
         grayscale_img_path = os.path.join(str(settings.BASE_DIR), "static", "images", "current_altered.png")
@@ -72,12 +70,12 @@ def generate_histogram(request):
 
         if img.mode == "L":
             # Generate the histogram for the image
-            histogram = generate_image_histogram(img)
+            histogram = im.generate_image_histogram(img)
 
             # Return the histogram as a JSON response
             return JsonResponse({'imgType': 'grayscale', 'histogram': histogram})
         else:
-            h, s, v = generate_image_histogram(img)
+            h, s, v = im.generate_image_histogram(img)
             return JsonResponse({'imgType': 'hsv', 'histogram_h': h, 'histogram_s': s, 'histogram_v': v})
     else:
         return HttpResponse(status=400)
@@ -89,7 +87,7 @@ def generate_haralick_features(request):
         image_url = data_dict['image_url']
         img = Image.open(os.path.join(str(settings.BASE_DIR), "static", "images", image_url))
 
-        features = haralick_gray_scale(img)
+        features = im.haralick_gray_scale(img)
         # Save a cv2 image
         cv2_image = features['image']
         cv2_image_path = os.path.join(str(settings.BASE_DIR), "static", "images", "current_altered.png")
@@ -101,5 +99,30 @@ def generate_haralick_features(request):
                              'homogeneity': features['homogeneity'],
                              'energy': features['energy'],
                              'correlation': features['correlation']})
+    else:
+        return HttpResponse(status=400)
+
+
+def hu_moments(request):
+    data_dict = json.loads(request.body.decode("utf-8"))
+    if request.method == 'POST' and data_dict['image_url']:
+        image_url = data_dict['image_url']
+        img_type = data_dict['type']
+        # Calculate Hu Moments for the grayscale image
+
+        if img_type == 'gray':
+            binary_img, hu_moments_values = im.calculate_hu_moments(
+                os.path.join(str(settings.BASE_DIR), "static", "images", image_url), img_type)
+            binary_img_path = os.path.join(str(settings.BASE_DIR), "static", "images", "current_altered.png")
+
+            cv2.imwrite(binary_img_path, binary_img)
+
+            return JsonResponse({'binary_image_path': '/static/images/current_altered.png',
+                                 'hu_moments': hu_moments_values.tolist()})
+        elif img_type == 'color':
+            hu_moments_b, hu_moments_g, hu_moments_r = im.calculate_hu_moments(
+                os.path.join(str(settings.BASE_DIR), "static", "images", image_url), img_type)
+
+            return JsonResponse({'hu_moments_b': hu_moments_b.tolist(), 'hu_moments_g': hu_moments_g.tolist(), 'hu_moments_r': hu_moments_r.tolist()})
     else:
         return HttpResponse(status=400)
