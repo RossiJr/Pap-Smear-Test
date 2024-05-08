@@ -70,3 +70,12 @@ main {
 .dropdown-menu .dropdown-item:hover {
     cursor: pointer;
 }
+
+#image-container {
+    overflow: hidden;
+}
+
+#main-image {
+    transform-origin: center;
+    object-fit: cover;
+}

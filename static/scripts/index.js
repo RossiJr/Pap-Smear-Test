@@ -4,11 +4,44 @@ function uploadImage() {
 
 
 document.addEventListener('DOMContentLoaded', function () {
+    var scale = 2;
+
     changeMainImage();
     document.querySelector('#resetButton').addEventListener('click', function () {
         document.querySelector('#main-image').src = current_image_url;
         document.getElementById('featuresDiv').innerHTML = '';
     });
+
+    // Zoom feature
+    const container = document.getElementById("image-container");
+    const img = document.getElementById("main-image");
+
+    container.addEventListener("mousemove", (e) => {
+        const x = e.clientX - e.target.offsetLeft;
+        const y = e.clientY - e.target.offsetTop;
+
+
+        img.style.transformOrigin = x + 'px ' + y + 'px';
+        img.style.transform = 'scale(' + scale +')';
+    })
+
+    container.addEventListener("mouseleave", () => {
+        img.style.transition = "transform 0.2s";
+        img.style.transform = "scale(1)";
+    })
+
+    container.addEventListener("wheel", (e) => {
+    e.preventDefault(); // Prevent default scroll behavior
+
+    scale += e.deltaY * -0.01; // Adjust scale based on scroll direction
+    scale = Math.max(2, scale); // Ensure minimum scale is 2
+
+    const x = e.clientX - container.offsetLeft;
+    const y = e.clientY - container.offsetTop;
+
+    img.style.transformOrigin = x + 'px ' + y + 'px';
+    img.style.transform = 'scale(' + scale +')';
+});
 
 });
 
