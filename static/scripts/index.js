@@ -4,7 +4,7 @@ function uploadImage() {
 
 
 document.addEventListener('DOMContentLoaded', function () {
-    var scale = 2;
+    var scale = 1;
 
     changeMainImage();
     document.querySelector('#resetButton').addEventListener('click', function () {
@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', function () {
     e.preventDefault(); // Prevent default scroll behavior
 
     scale += e.deltaY * -0.01; // Adjust scale based on scroll direction
-    scale = Math.max(2, scale); // Ensure minimum scale is 2
+    scale = Math.max(1, scale); // Ensure minimum scale is 2
 
     const x = e.clientX - container.offsetLeft;
     const y = e.clientY - container.offsetTop;

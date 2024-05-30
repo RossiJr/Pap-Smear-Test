@@ -2,6 +2,7 @@ from PIL import Image
 import cv2
 import numpy as np
 from skimage.feature import graycomatrix, graycoprops
+import os
 
 
 def convert_image_to_gray_scale(image: Image):
@@ -40,21 +41,29 @@ def haralick_gray_scale(image: Image):
 
     # Step 3: Compute Haralick texture features
     # Define parameters for GLCM calculation
-    distances = [1]  # distance between pixels
+    distances = [1, 2, 4, 8, 16, 32]  # distance between pixels
     angles = [0, np.pi / 4, np.pi / 2, 3 * np.pi / 4]  # angles for GLCM calculation
 
     # Compute GLCM (Gray-Level Co-occurrence Matrix)
     glcm = graycomatrix(gray_image, distances=distances, angles=angles, symmetric=True, normed=True)
 
     # Compute Haralick texture features
+    entropy = __entropy(glcm)
     contrast = graycoprops(glcm, 'contrast')
-    dissimilarity = graycoprops(glcm, 'dissimilarity')
     homogeneity = graycoprops(glcm, 'homogeneity')
-    energy = graycoprops(glcm, 'energy')
-    correlation = graycoprops(glcm, 'correlation')
 
-    return {'contrast': contrast[0, 0], 'dissimilarity': dissimilarity[0, 0], 'homogeneity': homogeneity[0, 0],
-            'energy': energy[0, 0], 'correlation': correlation[0, 0], 'image': gray_image}
+    return {'contrast': contrast[0, 0], 'entropy': entropy, 'homogeneity': homogeneity[0, 0],
+            'image': gray_image}
+
+
+def __entropy(glcm):
+    # Normalize GLCM
+    glcm_normalized = glcm / np.sum(glcm)
+
+    # Compute entropy
+    entropy = -np.sum(glcm * np.log2(glcm + 1e-10))  # Add a small epsilon to avoid log(0)
+
+    return entropy
 
 
 def calculate_hu_moments(image_url: str, type: str):
@@ -92,3 +101,17 @@ def __calculate_hu_moments_gray(image_path: str):
     hu_moments = cv2.HuMoments(central_moments)
 
     return binary, hu_moments
+
+
+def co_ocurrence_matriz(image_path: str):
+    image_path = 'D:\\PAI\\Test\\static\\images\\current_altered.png'
+
+    image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+
+    # Compute GLCM (Gray-Level Co-occurrence Matrix)
+    distances = [32]  # distance between pixels
+    angles = [0]
+
+    glcm = graycomatrix(image, distances=distances, angles=angles, symmetric=True, normed=True)
+
+    print(glcm)

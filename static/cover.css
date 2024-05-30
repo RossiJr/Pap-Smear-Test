@@ -75,6 +75,10 @@ main {
     overflow: hidden;
 }
 
+#main-image:hover {
+    cursor: zoom-in;
+}
+
 #main-image {
     transform-origin: center;
     object-fit: cover;
