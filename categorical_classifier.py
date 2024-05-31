@@ -133,7 +133,7 @@ def main():
 
     compute_confusion_matrix(model, dataloaders['val'], class_names)
 
-    torch.save(model.state_dict(), 'model.pth')
+    torch.save(model.state_dict(), 'best_model_efficientnet_b0.pth')
 
 
 if __name__ == '__main__':
