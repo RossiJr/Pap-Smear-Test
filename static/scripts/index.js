@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
         img.style.transformOrigin = x + 'px ' + y + 'px';
-        img.style.transform = 'scale(' + scale +')';
+        img.style.transform = 'scale(' + scale + ')';
     })
 
     container.addEventListener("mouseleave", () => {
@@ -31,17 +31,17 @@ document.addEventListener('DOMContentLoaded', function () {
     })
 
     container.addEventListener("wheel", (e) => {
-    e.preventDefault(); // Prevent default scroll behavior
+        e.preventDefault(); // Prevent default scroll behavior
 
-    scale += e.deltaY * -0.01; // Adjust scale based on scroll direction
-    scale = Math.max(1, scale); // Ensure minimum scale is 2
+        scale += e.deltaY * -0.01; // Adjust scale based on scroll direction
+        scale = Math.max(1, scale); // Ensure minimum scale is 2
 
-    const x = e.clientX - container.offsetLeft;
-    const y = e.clientY - container.offsetTop;
+        const x = e.clientX - container.offsetLeft;
+        const y = e.clientY - container.offsetTop;
 
-    img.style.transformOrigin = x + 'px ' + y + 'px';
-    img.style.transform = 'scale(' + scale +')';
-});
+        img.style.transformOrigin = x + 'px ' + y + 'px';
+        img.style.transform = 'scale(' + scale + ')';
+    });
 
 });
 
@@ -212,6 +212,40 @@ document.addEventListener("DOMContentLoaded", function () {
                 console.error('Error:', error);
             });
     });
+
+    document.querySelector('#xgboost-binary').addEventListener('click', function () {
+        // Get the URL of the uploaded image
+        var imageUrl = document.querySelector('#main-image').src
+
+        // get the substring after the last slash
+        imageUrl = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
+        var csrftoken = getCookie('csrftoken');
+
+        // Make an AJAX request to the Django endpoint to convert the image to grayscale
+        fetch(classify, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify({image_url: imageUrl, model: 'xgboostBinary'})
+        })
+            .then(response => response.json())
+            .then(data => {
+                let clazz = parseInt(data.img_class);
+                if (clazz == 0) {
+                    document.getElementById('featuresDiv').innerHTML = '';
+                    fillFeaturesDiv(['Class:', 'Negative for intraepithelial lesion']);
+                } else {
+                    document.getElementById('featuresDiv').innerHTML = '';
+                    fillFeaturesDiv(['Class:', 'Positive for intraepithelial lesion']);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+    });
+
 });
 
 // Function to get the CSRF token from the cookie

@@ -11,4 +11,5 @@ urlpatterns = [
     path('api/generate_haralick_features/', views.generate_haralick_features, name='generate_haralick_features'),
     path('api/generate_histogram/', views.generate_histogram, name='generate_histogram'),
     path('api/hu_moments/', views.hu_moments, name='hu_moments'),
+    path('api/classify/', views.classify_image, name='classify'),
 ]

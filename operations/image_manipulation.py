@@ -5,8 +5,48 @@ from skimage.feature import graycomatrix, graycoprops
 import os
 
 
+def add_gaussian_noise(image: Image, mean=0, std=25):
+    # Convert image to a numpy array
+    np_image = np.array(image, dtype=np.float32)
+
+    # Generate Gaussian noise
+    gauss = np.random.normal(mean, std, np_image.shape).astype(np.float32)
+
+    # Add the noise to the image
+    noisy_image = np_image + gauss
+
+    # Clip the pixel values to the range [0, 255]
+    noisy_image = np.clip(noisy_image, 0, 255).astype(np.uint8)
+
+    return noisy_image
+
+
+def rotate_image(image: Image, angle: int):
+    return image.rotate(angle, expand=False)
+
+
+def pre_process_image(image: np.ndarray, resize=False, resize_width=100, resize_height=100):
+    if image is None:
+        return None
+    pre_processed_img = convert_image_to_gray_scale_cv2(image)
+    return resize_image(pre_processed_img, resize_width, resize_height) if resize else pre_processed_img
+
+
+def resize_image(image: np.ndarray, width: int, height: int):
+    resized_image = cv2.resize(image, (width, height))
+    return resized_image
+
+
 def convert_image_to_gray_scale(image: Image):
     return image.convert("L")
+
+
+def convert_image_to_gray_scale_cv2(image: np.ndarray):
+    return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+
+def generate_image_histogram_gray_scale(image: cv2):
+    return cv2.calcHist([image], [0], None, [256], [0, 256])
 
 
 def generate_image_histogram(image: Image):
@@ -26,34 +66,48 @@ def histogram_test():
     print(len(histogram))
 
 
-def haralick_gray_scale(image: Image):
+def haralick_gray_scale(image: np.ndarray, distances=None, angles=None):
     """
     This function computes Haralick texture features for a grayscale image.
+    :param distances: The distance between pixels
+    :param angles: The angles for GLCM calculation
     :param image: An RGB Image object
     :return: A dictionary containing the computed Haralick texture features and the original image
     """
-    if image.mode != 'L':
-        image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+    if distances is None:
+        distances = [1]
+    if angles is None:
+        angles = [0, np.pi / 4, np.pi / 2]
+    if len(image.shape) == 3:
         # Step 2: Convert to grayscale
         gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     else:
-        gray_image = np.array(image)
+        gray_image = image
 
     # Step 3: Compute Haralick texture features
     # Define parameters for GLCM calculation
-    distances = [1, 2, 4, 8, 16, 32]  # distance between pixels
-    angles = [0, np.pi / 4, np.pi / 2, 3 * np.pi / 4]  # angles for GLCM calculation
+    # distances = [1]  # distance between pixels
+    # angles = [0, np.pi / 4, np.pi / 2]  # angles for GLCM calculation
 
     # Compute GLCM (Gray-Level Co-occurrence Matrix)
     glcm = graycomatrix(gray_image, distances=distances, angles=angles, symmetric=True, normed=True)
 
     # Compute Haralick texture features
-    entropy = __entropy(glcm)
-    contrast = graycoprops(glcm, 'contrast')
-    homogeneity = graycoprops(glcm, 'homogeneity')
+    # entropy = __entropy(glcm)
+    # contrast = graycoprops(glcm, 'contrast')
+    # homogeneity = graycoprops(glcm, 'homogeneity')
 
-    return {'contrast': contrast[0, 0], 'entropy': entropy, 'homogeneity': homogeneity[0, 0],
-            'image': gray_image}
+    # Calcular os descritores de Haralick
+    features = []
+    properties = ['contrast', 'dissimilarity', 'homogeneity', 'energy', 'correlation',
+                  'ASM']  # ASM é energia angular do segundo momento
+
+    for prop in properties:
+        for angle in range(len(angles)):
+            feature = graycoprops(glcm, prop)[0, angle]
+            features.append(feature)
+
+    return features
 
 
 def __entropy(glcm):

@@ -31,6 +31,7 @@
         const generateHaralickFeaturesURL = '{% url "generate_haralick_features" %}';
         const generateHistogram = '{% url "generate_histogram" %}';
         const huMoments = '{% url "hu_moments" %}';
+        const classify = '{% url "classify" %}';
         
         
         
@@ -176,6 +177,7 @@
                     </div>
 {#                    <button id="grayScaleButton" class="btn btn-secondary menu-btn">Gray Scale</button>#}
                     <button id="histogramButton" class="btn btn-primary menu-btn">Histogram</button>
+
                     <div class="dropdown d-inline">
                         <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown"
                                 aria-expanded="false">
@@ -187,10 +189,26 @@
 {#                            <li><a class="dropdown-item" href="#">Something else here</a></li>#}
                         </ul>
                     </div>
+
+                    <div class="dropdown d-inline">
+                        <button class="btn btn-success dropdown-toggle" type="button" data-bs-toggle="dropdown"
+                                aria-expanded="false">
+                            Classify
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li class="dropdown-item" id="xgboost-binary">XGBoost (Binary)</li>
+                            <li class="dropdown-item" id="xgboost-multiclass">XGBoost (Multiclass)</li>
+{#                            <li><a class="dropdown-item" href="#">Something else here</a></li>#}
+                        </ul>
+                    </div>
+
                     <button id="resetButton" class="btn btn-danger menu-btn">Reset</button>
                     <!-- Add more buttons as needed -->
                 </div>
 
+                <div class="text-center">
+                    <h3 id="image-name" style="display: none">a</h3>
+                </div>
                 <!-- Container div for image -->
                 <div class="container-div mt-3" id="image-container">
                     <!-- Image -->

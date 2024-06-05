@@ -6,6 +6,8 @@ import os
 import json
 import numpy as np
 
+from operations.models import XGBoost as xgb
+
 from Test import settings
 import operations.image_manipulation as im
 
@@ -124,5 +126,23 @@ def hu_moments(request):
                 os.path.join(str(settings.BASE_DIR), "static", "images", image_url), img_type)
 
             return JsonResponse({'hu_moments_b': hu_moments_b.tolist(), 'hu_moments_g': hu_moments_g.tolist(), 'hu_moments_r': hu_moments_r.tolist()})
+    else:
+        return HttpResponse(status=400)
+
+
+def classify_image(request):
+    data_dict = json.loads(request.body.decode("utf-8"))
+    if request.method == 'POST' and data_dict['image_url'] and data_dict['model']:
+        image_url = data_dict['image_url']
+        img = cv2.imread(os.path.join(str(settings.BASE_DIR), "static", "images", image_url))
+
+        # Classify the image using the pre-trained XGBoost models
+        clazz = None
+        clazz_proba = None
+
+        if data_dict['model'] == 'xgboostBinary':
+            clazz = xgb.predict(xgb.get_model('binary', os.path.join(str(settings.BASE_DIR), "static", "binaryModel.json")), img)
+
+        return JsonResponse({'img_class': clazz.tolist()[0]})
     else:
         return HttpResponse(status=400)
