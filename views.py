@@ -87,20 +87,11 @@ def generate_haralick_features(request):
     data_dict = json.loads(request.body.decode("utf-8"))
     if request.method == 'POST' and data_dict['image_url']:
         image_url = data_dict['image_url']
-        img = Image.open(os.path.join(str(settings.BASE_DIR), "static", "images", image_url))
+        img = cv2.imread(os.path.join(str(settings.BASE_DIR), "static", "images", image_url))
 
-        features = im.haralick_gray_scale(img)
-        # Save a cv2 image
-        cv2_image = features['image']
-        cv2_image_path = os.path.join(str(settings.BASE_DIR), "static", "images", "current_altered.png")
-        cv2.imwrite(cv2_image_path, cv2_image)
+        features = im.haralick_gray_scale(img, distances=[1, 2, 4, 8], angles=[0, np.pi / 4, np.pi / 2, 3 * np.pi / 4], api_call=True)
 
-        return JsonResponse({'img_path': '/static/images/current_altered.png',
-                             'contrast': features['contrast'],
-                             'dissimilarity': features['dissimilarity'],
-                             'homogeneity': features['homogeneity'],
-                             'energy': features['energy'],
-                             'correlation': features['correlation']})
+        return JsonResponse(features, safe=False)
     else:
         return HttpResponse(status=400)
 
@@ -142,7 +133,10 @@ def classify_image(request):
 
         if data_dict['model'] == 'xgboostBinary':
             clazz = xgb.predict(xgb.get_model('binary', os.path.join(str(settings.BASE_DIR), "static", "binaryModel.json")), img)
+        elif data_dict['model'] == 'xgboostMulticlass':
+            model, label_encoder = xgb.get_model('multiclass', os.path.join(str(settings.BASE_DIR), "static", "multiclassModel.json"), label_encoder_path=os.path.join(str(settings.BASE_DIR), "static", "label_encoder.npy"))
+            clazz = label_encoder.inverse_transform(xgb.predict(model, img))
 
-        return JsonResponse({'img_class': clazz.tolist()[0]})
+        return JsonResponse({'img_class': str(clazz.tolist()[0])})
     else:
         return HttpResponse(status=400)

@@ -36,7 +36,7 @@ def generate_haralick_features():
 
 def random_remove_images(folder_path, percentage):
     # All files in the folder
-    files  = os.listdir(folder_path)
+    files = os.listdir(folder_path)
 
     # Number of files to remove
     number_of_files_to_remove = int(len(files) * percentage)
@@ -170,7 +170,6 @@ def crop_images():
     df = df[df['cell_id'] != 530]
 
     # Crop the dataset based on the nucleus_x and nucleus_y columns found in the dataset
-
     NUCLEUS_TOTAL = len(df)
     [__save_image(get_cell_nucleus(row), row["cell_id"], row["bethesda_system"]) for index, row in
      df.iterrows()]

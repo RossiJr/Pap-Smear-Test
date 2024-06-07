@@ -66,7 +66,7 @@ def histogram_test():
     print(len(histogram))
 
 
-def haralick_gray_scale(image: np.ndarray, distances=None, angles=None):
+def haralick_gray_scale(image: np.ndarray, distances=None, angles=None, api_call=False):
     """
     This function computes Haralick texture features for a grayscale image.
     :param distances: The distance between pixels
@@ -74,40 +74,50 @@ def haralick_gray_scale(image: np.ndarray, distances=None, angles=None):
     :param image: An RGB Image object
     :return: A dictionary containing the computed Haralick texture features and the original image
     """
+
+    # Default distances used to calculate the GLCM
     if distances is None:
         distances = [1]
+
+    # Default angles used to calculate the GLCM
     if angles is None:
         angles = [0, np.pi / 4, np.pi / 2]
+
+    # If the image is colored, convert it to grayscale
     if len(image.shape) == 3:
-        # Step 2: Convert to grayscale
         gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     else:
         gray_image = image
-
-    # Step 3: Compute Haralick texture features
-    # Define parameters for GLCM calculation
-    # distances = [1]  # distance between pixels
-    # angles = [0, np.pi / 4, np.pi / 2]  # angles for GLCM calculation
 
     # Compute GLCM (Gray-Level Co-occurrence Matrix)
     glcm = graycomatrix(gray_image, distances=distances, angles=angles, symmetric=True, normed=True)
 
     # Compute Haralick texture features
-    # entropy = __entropy(glcm)
-    # contrast = graycoprops(glcm, 'contrast')
-    # homogeneity = graycoprops(glcm, 'homogeneity')
-
-    # Calcular os descritores de Haralick
     features = []
     properties = ['contrast', 'dissimilarity', 'homogeneity', 'energy', 'correlation',
                   'ASM']  # ASM é energia angular do segundo momento
+    features_api = []
+    # Calculate the features for each property and angle (it doesn't have for the distances implemented yet)
 
-    for prop in properties:
-        for angle in range(len(angles)):
-            feature = graycoprops(glcm, prop)[0, angle]
-            features.append(feature)
+    if api_call:
+        for prop in properties:
+            feature_temp = graycoprops(glcm, prop)
+            feature = {'property': prop, 'values': []}
+            for i in range(len(distances)):
+                feature['values'].append({'distance': distances[i], 'values': []})
+                for j in range(len(angles)):
+                    feature['values'][i]['values'].append({'angle': angles[j], 'value': feature_temp[i, j]})
+            features_api.append(feature)
+        return features_api
+    else:
+        for prop in properties:
+            feature_temp = graycoprops(glcm, prop)
+            for i in range(len(distances)):
+                for j in range(len(angles)):
+                    features.append(feature_temp[i, j])
+        return features
 
-    return features
+    return features_api if api_call else features
 
 
 def __entropy(glcm):

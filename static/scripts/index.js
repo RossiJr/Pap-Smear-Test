@@ -246,6 +246,34 @@ document.addEventListener("DOMContentLoaded", function () {
             });
     });
 
+    document.querySelector('#xgboost-multiclass').addEventListener('click', function () {
+        // Get the URL of the uploaded image
+        var imageUrl = document.querySelector('#main-image').src
+
+        // get the substring after the last slash
+        imageUrl = imageUrl.substring(imageUrl.lastIndexOf('/') + 1);
+        var csrftoken = getCookie('csrftoken');
+
+        // Make an AJAX request to the Django endpoint to convert the image to grayscale
+        fetch(classify, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify({image_url: imageUrl, model: 'xgboostMulticlass'})
+        })
+            .then(response => response.json())
+            .then(data => {
+
+                document.getElementById('featuresDiv').innerHTML = '';
+                fillFeaturesDiv(['Class:', data['img_class']]);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+    });
+
 });
 
 // Function to get the CSRF token from the cookie
