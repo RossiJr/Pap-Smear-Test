@@ -55,8 +55,9 @@ main {
 
 /* Increase the width of mainContainer */
 #mainContainer {
-    width: 90%; /* Adjust the width percentage as needed */
+    width: 1vw; /* Adjust the width percentage as needed */
     margin: 0 auto; /* Center the container */
+
 }
 
 /* Increase the width of the canvas */
@@ -82,4 +83,8 @@ main {
 #main-image {
     transform-origin: center;
     object-fit: cover;
+}
+
+#featuresDiv {
+    width: fit-content;
 }

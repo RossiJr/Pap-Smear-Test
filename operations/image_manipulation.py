@@ -117,8 +117,6 @@ def haralick_gray_scale(image: np.ndarray, distances=None, angles=None, api_call
                     features.append(feature_temp[i, j])
         return features
 
-    return features_api if api_call else features
-
 
 def __entropy(glcm):
     # Normalize GLCM

@@ -175,6 +175,41 @@ document.addEventListener("DOMContentLoaded", function () {
             });
     });
 
+    function generateHaralickTable(property, data){
+        html = `
+            <table class="table table-bordered table-striped table-hover table-sm">
+                <thead>
+                    <tr>
+                        <th scope="col">Distance/Angle</th>
+                        ${data.values[0].values.map((value, index) => `<th scope="col">${Math.round(radiansToDegrees(value.angle))}</th>`).join('')}
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data.values.map((value, index) => `
+                        <tr>
+                            <th scope="row">${value.distance}</th>
+                            ${value.values.map((val, index) => `<td>${parseFloat(val.value.toFixed(4))}</td>`).join('')}
+                        </tr>
+                    `).join('')}
+                </tbody>
+                
+            </table>
+               `;
+        return html;
+    }
+
+    function radiansToDegrees(radians) {
+        return radians * (180 / Math.PI);
+    }
+
+    function searchProperty(data, property){
+        for (let i = 0; i < data.length; i++) {
+            if (data[i].property === property) {
+                return data[i];
+            }
+        }
+    }
+
     document.querySelector('#haralickButton').addEventListener('click', function () {
         // Get the URL of the uploaded image
         var imageUrl = document.querySelector('#main-image').src
@@ -198,15 +233,55 @@ document.addEventListener("DOMContentLoaded", function () {
             .then(response => response.json())
             .then(data => {
                 // Once the response is received, update the image source with the grayscale image
-                console.log(data.img_path)
-                document.querySelector('#main-image').src = data.img_path;
+                console.log(data)
+                // document.querySelector('#main-image').src = data.img_path;
+                // Search for the position with the property value as contrast in the data object
 
+                console.log(searchProperty(data, 'contrast'));
+//'contrast', 'dissimilarity', 'homogeneity', 'energy', 'correlation',
+//                   'ASM'
                 document.getElementById('featuresDiv').innerHTML = '';
-                fillFeaturesDiv(['Contrast: ', data.contrast]);
-                fillFeaturesDiv(['Dissimilarity: ', data.dissimilarity]);
-                fillFeaturesDiv(['Homogeneity: ', data.homogeneity]);
-                fillFeaturesDiv(['Energy: ', data.energy]);
-                fillFeaturesDiv(['Correlation: ', data.correlation]);
+                buttons_html = `
+                <div class="mb-2 h-100">
+                    <div class="btn-group-horizontal h-100" role="group" aria-label="Vertical radio toggle button group">
+                      <input type="radio" class="btn-check hara_select" name="vbtn-radio" id="vbtn-contrast" autocomplete="off" checked>
+                      <label class="btn btn-outline-danger" for="vbtn-contrast">Contrast</label>
+                      <input type="radio" class="btn-check hara_select" name="vbtn-radio" id="vbtn-dissimilarity" autocomplete="off">
+                      <label class="btn btn-outline-danger" for="vbtn-dissimilarity">Dissimilarity</label>
+                      <input type="radio" class="btn-check hara_select" name="vbtn-radio" id="vbtn-homogeneity" autocomplete="off">
+                      <label class="btn btn-outline-danger" for="vbtn-homogeneity">Homogeneity</label>
+                      <input type="radio" class="btn-check hara_select" name="vbtn-radio" id="vbtn-energy" autocomplete="off">
+                      <label class="btn btn-outline-danger" for="vbtn-energy">Energy</label>
+                      <input type="radio" class="btn-check hara_select" name="vbtn-radio" id="vbtn-correlation" autocomplete="off">
+                      <label class="btn btn-outline-danger" for="vbtn-correlation">Correlation</label>
+                      <input type="radio" class="btn-check hara_select" name="vbtn-radio" id="vbtn-asm" autocomplete="off">
+                      <label class="btn btn-outline-danger" for="vbtn-asm">ASM</label>
+                    </div>
+                </div>
+                <div id="haralickTable">
+                </div>
+                `;
+                document.getElementById('featuresDiv').innerHTML += buttons_html;
+
+                document.getElementById('haralickTable').innerHTML = generateHaralickTable('Contrast', searchProperty(data, 'contrast'));
+
+                document.querySelectorAll('.hara_select').forEach(radio => {
+                    radio.addEventListener('change', function () {
+                        if (this.checked) {
+                            const selectedButton = this.id.replace('vbtn-', '');
+                            document.getElementById('haralickTable').innerHTML = generateHaralickTable(selectedButton, searchProperty(data, selectedButton));
+                        }
+                    });
+                });
+
+
+                // document.getElementById('featuresDiv').innerHTML += generateHaralickTable('Contrast', searchProperty(data, 'contrast'));
+
+                // fillFeaturesDiv(['Contrast: ', data.contrast]);
+                // fillFeaturesDiv(['Dissimilarity: ', data.dissimilarity]);
+                // fillFeaturesDiv(['Homogeneity: ', data.homogeneity]);
+                // fillFeaturesDiv(['Energy: ', data.energy]);
+                // fillFeaturesDiv(['Correlation: ', data.correlation]);
             })
             .catch(error => {
                 console.error('Error:', error);
@@ -265,7 +340,6 @@ document.addEventListener("DOMContentLoaded", function () {
         })
             .then(response => response.json())
             .then(data => {
-
                 document.getElementById('featuresDiv').innerHTML = '';
                 fillFeaturesDiv(['Class:', data['img_class']]);
             })
