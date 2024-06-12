@@ -18,3 +18,4 @@ def classify_image(image: np.ndarray, str_model: str):
         multiclass_prediction = settings.XGBOOST_MODELS['multiclass'].predict(img_dmatriz)
         multiclass_prediction_proba = settings.XGBOOST_MODELS['multiclass'].predict_proba(img_dmatriz)
         return multiclass_prediction, multiclass_prediction_proba
+

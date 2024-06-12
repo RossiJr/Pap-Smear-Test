@@ -7,6 +7,7 @@ import json
 import numpy as np
 
 from operations.models import XGBoost as xgb
+from operations.models import EfficientNetMulticlass as enetmulti, EfficientNetBinary as enetbinary
 
 from Test import settings
 import operations.image_manipulation as im
@@ -89,7 +90,8 @@ def generate_haralick_features(request):
         image_url = data_dict['image_url']
         img = cv2.imread(os.path.join(str(settings.BASE_DIR), "static", "images", image_url))
 
-        features = im.haralick_gray_scale(img, distances=[1, 2, 4, 8], angles=[0, np.pi / 4, np.pi / 2, 3 * np.pi / 4], api_call=True)
+        features = im.haralick_gray_scale(img, distances=[1, 2, 4, 8], angles=[0, np.pi / 4, np.pi / 2, 3 * np.pi / 4],
+                                          api_call=True)
 
         return JsonResponse(features, safe=False)
     else:
@@ -116,7 +118,8 @@ def hu_moments(request):
             hu_moments_b, hu_moments_g, hu_moments_r = im.calculate_hu_moments(
                 os.path.join(str(settings.BASE_DIR), "static", "images", image_url), img_type)
 
-            return JsonResponse({'hu_moments_b': hu_moments_b.tolist(), 'hu_moments_g': hu_moments_g.tolist(), 'hu_moments_r': hu_moments_r.tolist()})
+            return JsonResponse({'hu_moments_b': hu_moments_b.tolist(), 'hu_moments_g': hu_moments_g.tolist(),
+                                 'hu_moments_r': hu_moments_r.tolist()})
     else:
         return HttpResponse(status=400)
 
@@ -132,10 +135,24 @@ def classify_image(request):
         clazz_proba = None
 
         if data_dict['model'] == 'xgboostBinary':
-            clazz = xgb.predict(xgb.get_model('binary', os.path.join(str(settings.BASE_DIR), "static", "binaryModel.json")), img)
+            clazz = xgb.predict(
+                xgb.get_model('binary', os.path.join(str(settings.BASE_DIR), "static", "binaryModel.json")), img)
         elif data_dict['model'] == 'xgboostMulticlass':
-            model, label_encoder = xgb.get_model('multiclass', os.path.join(str(settings.BASE_DIR), "static", "multiclassModel.json"), label_encoder_path=os.path.join(str(settings.BASE_DIR), "static", "label_encoder.npy"))
+            model, label_encoder = xgb.get_model('multiclass',
+                                                 os.path.join(str(settings.BASE_DIR), "static", "multiclassModel.json"),
+                                                 label_encoder_path=os.path.join(str(settings.BASE_DIR), "static",
+                                                                                 "label_encoder.npy"))
             clazz = label_encoder.inverse_transform(xgb.predict(model, img))
+        elif data_dict['model'] == 'efficientNetMulticlass':
+            return JsonResponse(
+                {'img_class': enetmulti.classify_image(
+                    os.path.join(str(settings.BASE_DIR), "static", "images", image_url),
+                    os.path.join(str(settings.BASE_DIR), "static", "multiclassEfficientNet.pth"))})
+        elif data_dict['model'] == 'efficientNetBinary':
+            return JsonResponse(
+                {'img_class': enetbinary.classify_image(
+                    os.path.join(str(settings.BASE_DIR), "static", "images", image_url),
+                    os.path.join(str(settings.BASE_DIR), "static", "binaryEfficientNet.pth"))})
 
         return JsonResponse({'img_class': str(clazz.tolist()[0])})
     else:
