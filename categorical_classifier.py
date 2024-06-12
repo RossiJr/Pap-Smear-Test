@@ -1,6 +1,6 @@
 ﻿import torch
 from torchvision import datasets, models, transforms
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, random_split, Subset
 from torch import nn, optim
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 import matplotlib.pyplot as plt
@@ -8,31 +8,43 @@ import numpy as np
 import os
 import copy
 
-data_dir = 'C:\\Users\\vinif\\PycharmProjects\\PAI\\cropped_dataset_train_val'
+data_dir = f'C:/Users/vinif/OneDrive/Documents/cropped_dataset'
 
 
 def main():
-    data_transforms = {
-        'train': transforms.Compose([
-            transforms.RandomResizedCrop(224),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ]),
-        'val': transforms.Compose([
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ]),
+    data_transforms = transforms.Compose([
+        transforms.RandomResizedCrop(224),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
+
+    val_transforms = transforms.Compose([
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
+
+    # Carregar o dataset completo com as transformações de treino
+    dataset = datasets.ImageFolder(data_dir, transform=data_transforms)
+
+    # Definir a proporção de dados para validação
+    val_split = 0.2
+    val_size = int(len(dataset) * val_split)
+    train_size = len(dataset) - val_size
+
+    # Dividir o dataset em treino e validação
+    train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+
+    # Criar os DataLoaders
+    dataloaders = {
+        'train': DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4),
+        'val': DataLoader(val_dataset, batch_size=32, shuffle=True, num_workers=4)
     }
 
-    image_datasets = {x: datasets.ImageFolder(os.path.join(data_dir, x), data_transforms[x])
-                      for x in ['train', 'val']}
-    dataloaders = {x: DataLoader(image_datasets[x], batch_size=32, shuffle=True, num_workers=4)
-                   for x in ['train', 'val']}
-    dataset_sizes = {x: len(image_datasets[x]) for x in ['train', 'val']}
-    class_names = image_datasets['train'].classes
+    dataset_sizes = {'train': train_size, 'val': val_size}
+    class_names = dataset.classes
 
     model = models.efficientnet_b0(pretrained=True)
 

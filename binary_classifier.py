@@ -1,111 +1,126 @@
 ﻿import torch
 from torchvision import datasets, models, transforms
-from torchvision.datasets import ImageFolder
-from torch.utils.data import DataLoader
-from torch import nn
-from torch.optim import Adam
-import os
-import copy
+from torch.utils.data import DataLoader, random_split, Dataset
+from torch import nn, optim
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 import matplotlib.pyplot as plt
 import numpy as np
+import os
+import copy
 
-data_dir = 'C:\\Users\\vinif\\PycharmProjects\\PAI\\cropped_dataset_train_val'
+data_dir = 'C:/Users/vinif/OneDrive/Documents/cropped_dataset'
 
 
-class BinaryImageFolder(datasets.ImageFolder):
-    def __getitem__(self, index):
-        path, target = self.samples[index]
-        target = 1 if self.classes[target] == 'Negative for intraephitelial lesion' else 0
-        sample = self.loader(path)
-        if self.transform is not None:
-            sample = self.transform(sample)
-        if self.target_transform is not None:
-            target = self.target_transform(target)
-        return sample, target
+class BinaryDataset(Dataset):
+    def __init__(self, dataset, target_class_idx):
+        self.dataset = dataset
+        self.target_class_idx = target_class_idx
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, idx):
+        img, label = self.dataset[idx]
+        # Transformar o rótulo para binário: 1 para a classe alvo, 0 para as outras
+        binary_label = 1 if label == self.target_class_idx else 0
+        return img, binary_label
 
 
 def main():
-    # Transformações de dados
-    data_transforms = {
-        'train': transforms.Compose([
-            transforms.RandomResizedCrop(224),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ]),
-        'val': transforms.Compose([
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ]),
+    # Definindo as transformações para treino e validação
+    data_transforms = transforms.Compose([
+        transforms.RandomResizedCrop(224),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
+
+    val_transforms = transforms.Compose([
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
+
+    # Carregar o dataset completo com as transformações de treino
+    dataset = datasets.ImageFolder(data_dir, transform=data_transforms)
+    
+    print('Class indices: ', dataset.class_to_idx)
+
+    # Definir a classe alvo (por exemplo, a primeira classe)
+    target_class_idx = 4  # Índice da classe que será classificada como 1
+
+    # Transformar o dataset para classificação binária
+    binary_dataset = BinaryDataset(dataset, target_class_idx)
+
+    # Definir a proporção de dados para validação
+    val_split = 0.2
+    val_size = int(len(binary_dataset) * val_split)
+    train_size = len(binary_dataset) - val_size
+
+    # Dividir o dataset em treino e validação
+    train_dataset, val_dataset = random_split(binary_dataset, [train_size, val_size])
+
+    # Aplicar a transformação de validação no conjunto de validação
+    val_dataset.dataset.dataset.transform = val_transforms
+
+    # Criar os DataLoaders
+    dataloaders = {
+        'train': DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4),
+        'val': DataLoader(val_dataset, batch_size=32, shuffle=True, num_workers=4)
     }
 
-    image_datasets = {x: datasets.ImageFolder(os.path.join(data_dir, x), data_transforms[x])
-                      for x in ['train', 'val']}
-    dataloaders = {x: DataLoader(image_datasets[x], batch_size=32, shuffle=True, num_workers=4)
-                   for x in ['train', 'val']}
-    dataset_sizes = {x: len(image_datasets[x]) for x in ['train', 'val']}
-    class_names = image_datasets['train'].classes
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    dataset_sizes = {'train': train_size, 'val': val_size}
 
-    image_datasets_binary = {x: BinaryImageFolder(os.path.join(data_dir, x), data_transforms[x])
-                             for x in ['train', 'val']}
-    dataloaders_binary = {x: DataLoader(image_datasets_binary[x], batch_size=32, shuffle=True, num_workers=4)
-                          for x in ['train', 'val']}
-    dataset_sizes_binary = {x: len(image_datasets_binary[x]) for x in ['train', 'val']}
-    class_names_binary = ['Non-Negative', 'Negative for intraephitelial lesion']
+    model = models.efficientnet_b0(pretrained=True)
 
-    model_binary = models.efficientnet_b0(pretrained=True)
-    num_ftrs = model_binary.classifier[1].in_features
-    model_binary.classifier[1] = nn.Linear(num_ftrs, 1)
-    model_binary = model_binary.to(device)
+    # Ajuste o modelo para uma única saída binária
+    num_ftrs = model.classifier[1].in_features
+    model.classifier[1] = nn.Linear(num_ftrs, 1)
+    model = model.to('cuda' if torch.cuda.is_available() else 'cpu')
 
-    model_multiclass = models.efficientnet_b0(pretrained=True)
-    num_ftrs = model_multiclass.classifier[1].in_features
-    model_multiclass.classifier[1] = nn.Linear(num_ftrs, len(class_names))
-    model_multiclass = model_multiclass.to(device)
+    criterion = nn.BCEWithLogitsLoss()
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-    def train_model(model, criterion, optimizer, dataloaders, dataset_sizes, num_epochs=25):
+    def train_model(model, criterion, optimizer, num_epochs=25):
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
         best_model_wts = copy.deepcopy(model.state_dict())
         best_acc = 0.0
-
-        train_acc_history = []
-        val_acc_history = []
 
         for epoch in range(num_epochs):
             print(f'Epoch {epoch}/{num_epochs - 1}')
             print('-' * 10)
 
+            # Cada época tem uma fase de treino e outra de validação
             for phase in ['train', 'val']:
                 if phase == 'train':
-                    model.train()
+                    model.train()  # Definir modelo para treinamento
                 else:
-                    model.eval()
+                    model.eval()  # Definir modelo para avaliação
 
                 running_loss = 0.0
                 running_corrects = 0
 
+                # Iterar sobre os dados
                 for inputs, labels in dataloaders[phase]:
                     inputs = inputs.to(device)
-                    labels = labels.to(device)
+                    labels = labels.to(device).float().unsqueeze(1)  # Ajustar os rótulos para BCEWithLogitsLoss
 
+                    # Zerando os gradientes
                     optimizer.zero_grad()
 
+                    # Forward
                     with torch.set_grad_enabled(phase == 'train'):
                         outputs = model(inputs)
-                        if model.classifier[1].out_features == 1:  # Modelo binário
-                            loss = criterion(outputs, labels.float().unsqueeze(1))
-                            preds = (torch.sigmoid(outputs) > 0.5).float()
-                        else:  # Modelo multiclass
-                            loss = criterion(outputs, labels)
-                            _, preds = torch.max(outputs, 1)
+                        preds = torch.round(torch.sigmoid(outputs))
+                        loss = criterion(outputs, labels)
 
+                        # Backward + otimização apenas se estiver na fase de treino
                         if phase == 'train':
                             loss.backward()
                             optimizer.step()
 
+                    # Estatísticas
                     running_loss += loss.item() * inputs.size(0)
                     running_corrects += torch.sum(preds == labels.data)
 
@@ -114,35 +129,20 @@ def main():
 
                 print(f'{phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}')
 
-                if phase == 'train':
-                    train_acc_history.append(epoch_acc)
-                else:
-                    val_acc_history.append(epoch_acc)
-
+                # Deep copy do melhor modelo
                 if phase == 'val' and epoch_acc > best_acc:
                     best_acc = epoch_acc
                     best_model_wts = copy.deepcopy(model.state_dict())
 
         print(f'Best val Acc: {best_acc:.4f}')
+
+        # Carregar os melhores pesos do modelo
         model.load_state_dict(best_model_wts)
-        return model, train_acc_history, val_acc_history
+        return model
 
-    criterion_binary = nn.BCEWithLogitsLoss()
-    optimizer_binary = Adam(model_binary.parameters(), lr=0.001)
-
-    model_binary, train_acc_hist_binary, val_acc_hist_binary = train_model(
-        model_binary, criterion_binary, optimizer_binary, dataloaders_binary, dataset_sizes_binary, num_epochs=25
-    )
-
-    criterion_multiclass = nn.CrossEntropyLoss()
-    optimizer_multiclass = Adam(model_multiclass.parameters(), lr=0.001)
-
-    model_multiclass, train_acc_hist_multiclass, val_acc_hist_multiclass = train_model(
-        model_multiclass, criterion_multiclass, optimizer_multiclass, dataloaders, dataset_sizes, num_epochs=25
-    )
-
-    def compute_confusion_matrix(model, dataloader, class_names):
-        model.eval()
+    def compute_confusion_matrix(model, dataloader):
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        model.eval()  # Colocar o modelo em modo de avaliação
 
         all_preds = []
         all_labels = []
@@ -153,38 +153,25 @@ def main():
                 labels = labels.to(device)
 
                 outputs = model(inputs)
-                if model.classifier[1].out_features == 1:  # Modelo binário
-                    preds = (torch.sigmoid(outputs) > 0.5).float()
-                else:  # Modelo multiclass
-                    _, preds = torch.max(outputs, 1)
+                preds = torch.round(torch.sigmoid(outputs))
 
                 all_preds.extend(preds.cpu().numpy())
                 all_labels.extend(labels.cpu().numpy())
 
+        # Calcular a matriz de confusão
         cm = confusion_matrix(all_labels, all_preds)
-        disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=class_names)
+
+        # Exibir a matriz de confusão
+        disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[0, 1])
         disp.plot(cmap=plt.cm.Blues)
         plt.show()
 
-    # Para o modelo binário
-    compute_confusion_matrix(model_binary, dataloaders_binary['val'], class_names_binary)
+    model = train_model(model, criterion, optimizer)
 
-    # Para o modelo multiclasse
-    compute_confusion_matrix(model_multiclass, dataloaders['val'], class_names)
+    compute_confusion_matrix(model, dataloaders['val'])
 
-    def plot_learning_curves(train_acc_hist, val_acc_hist, title):
-        plt.figure(figsize=(8, 6))
-        plt.plot(train_acc_hist, label='Train Accuracy')
-        plt.plot(val_acc_hist, label='Validation Accuracy')
-        plt.xlabel('Epochs')
-        plt.ylabel('Accuracy')
-        plt.title(title)
-        plt.legend()
-        plt.grid(True)
-        plt.show()
+    torch.save(model.state_dict(), 'best_model_efficientnet_b0_binnary.pth')
 
-    plot_learning_curves(train_acc_hist_binary, val_acc_hist_binary, 'Binary Classification Learning Curve')
-    plot_learning_curves(train_acc_hist_multiclass, val_acc_hist_multiclass, 'Multiclass Classification Learning Curve')
 
 if __name__ == '__main__':
     main()
