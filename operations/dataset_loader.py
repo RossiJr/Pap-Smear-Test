@@ -1,218 +1,207 @@
-from operations import image_manipulation as im
-from PIL import Image
-import pandas as pd
-import numpy as np
-import random
-import cv2
 import os
+import cv2
+import numpy as np
+import pandas as pd
+from PIL import Image
+import random
+from operations import image_manipulation as im
 
+# Arquivos e diretórios de entrada e saída
 CLASSIFICATION_FILE = '../static/classifications.csv'
 DATASET_DIR = '../static/dataset'
 CROPPED_DATASET_DIR = '../static/cropped_dataset'
+
+# Variáveis globais para contagem
 NUCLEUS_COUNTER = 0
 NUCLEUS_TOTAL = 0
-
 counter = 0
 
-
 def generate_haralick_features():
+    """
+    Função para gerar características de Haralick de todas as imagens no diretório CROPPED_DATASET_DIR.
+    """
     dataset = []
     labels = []
 
-    total_imgs = 0
-    for folder in os.listdir(CROPPED_DATASET_DIR):
-        total_imgs += len(os.listdir(os.path.join(CROPPED_DATASET_DIR, folder)))
+    # Conta o total de imagens no diretório cropped_dataset
+    total_imgs = sum(len(files) for _, _, files in os.walk(CROPPED_DATASET_DIR))
 
     img_counter = 0
-    for folder_hara in os.listdir(CROPPED_DATASET_DIR):
-        for filename_hara in os.listdir(os.path.join(CROPPED_DATASET_DIR, folder_hara)):
+    for folder in os.listdir(CROPPED_DATASET_DIR):
+        folder_path = os.path.join(CROPPED_DATASET_DIR, folder)
+        for filename in os.listdir(folder_path):
             img_counter += 1
-            img = cv2.imread(os.path.join(CROPPED_DATASET_DIR, folder_hara, filename_hara))
-            haralick = im.haralick_gray_scale(img, distances=[1, 2, 4, 8],
-                                              angles=[0, np.pi / 4, np.pi / 2, 3 * np.pi / 4])
+            img = cv2.imread(os.path.join(folder_path, filename))
+            # Gera as características de Haralick para a imagem
+            haralick = im.haralick_gray_scale(img, distances=[1, 2, 4, 8], angles=[0, np.pi / 4, np.pi / 2, 3 * np.pi / 4])
             dataset.append(haralick)
-            labels.append(folder_hara)
+            labels.append(folder)
             print(f"Haralick - {img_counter}/{total_imgs}")
 
     return dataset, labels
 
-
 def random_remove_images(folder_path, percentage):
-    # All files in the folder
+    """
+    Remove uma porcentagem aleatória de imagens de um diretório.
+    """
     files = os.listdir(folder_path)
-
-    # Number of files to remove
     number_of_files_to_remove = int(len(files) * percentage)
+    files_to_remove = random.sample(files, number_of_files_to_remove) #Seleciona aleatoriamente
 
-    files_to_remove = random.sample(files, number_of_files_to_remove)
-    f_counter = 0
-    for file in files_to_remove:
-        f_counter += 1
+    for i, file in enumerate(files_to_remove, 1):
         os.remove(os.path.join(folder_path, file))
-        print(f"{f_counter}/{number_of_files_to_remove} files removed")
-
+        print(f"{i}/{number_of_files_to_remove} files removed")
 
 def rotate_image(image_path, angles):
-    images = []
-    for angle in angles:
-        image = Image.open(image_path)
-        images.append(im.rotate_image(image, angle))
-    return images
+    """
+    Rotaciona a imagem nos ângulos especificados.
+    """
+    image = Image.open(image_path)
+    return [im.rotate_image(image, angle) for angle in angles]
 
+def save_images(images, cell_id, cell_class):
+    """
+    Salva várias imagens geradas a partir de uma imagem original.
+    """
+    for i, image in enumerate(images):
+        save_image(image, f"{cell_id}_{i}", cell_class)
 
-def __save_images(images, cell_id, cell_class):
-    save_counter = 0
-    for image in images:
-        __save_image(image, f"{cell_id}_{save_counter}", cell_class)
-        save_counter += 1
-
-
-def __save_image(image, cell_id, cell_class):
-    # global counter
-    # Check if exists a directory with the cell_class name
+def save_image(image, cell_id, cell_class):
+    """
+    Salva uma única imagem no diretório especificado.
+    """
     global counter
-    if not os.path.exists(f'{CROPPED_DATASET_DIR}/{cell_class}'):
-        os.makedirs(f'{CROPPED_DATASET_DIR}/{cell_class}')
-    cv2.imwrite(f'{CROPPED_DATASET_DIR}/{cell_class}/{cell_id}.png',
-                image if not isinstance(image, Image.Image) else np.array(image))
+    folder_path = os.path.join(CROPPED_DATASET_DIR, cell_class)
+    os.makedirs(folder_path, exist_ok=True)
+    cv2.imwrite(os.path.join(folder_path, f"{cell_id}.png"), np.array(image) if isinstance(image, Image.Image) else image)
     counter += 1
 
+def get_png_jpg_filenames(directory):
+    """
+    Retorna uma lista de arquivos que terminam com .jpg ou .png em um diretório.
+    """
+    return [file for file in os.listdir(directory) if file.endswith('.jpg') or file.endswith('.png')]
 
-def __get_png_jpg_filenames(directory):
-    filenames = []
-    for file in os.listdir(directory):
-        if file.endswith('.jpg') or file.endswith('.png'):
-            filenames.append(file)
-
-    return filenames
-
-
-def __get_image(file_name):
-    return cv2.imread(f'{DATASET_DIR}/{file_name}')
-
+def get_image(file_name):
+    """
+    Lê uma imagem a partir de seu nome de arquivo.
+    """
+    return cv2.imread(os.path.join(DATASET_DIR, file_name))
 
 def oversampling():
-    # Angles to rotate the image
+    """
+    Realiza oversampling nas imagens, rotacionando-as e aplicando filtros.
+    """
     rotating_angles = [90, 180]
-    filters = ['gaussian']
+    filters = []
 
-    total_imgs = 0
+    # Conta o total de imagens a serem processadas para oversampling
+    total_imgs = sum(len(files) for folder in os.listdir(CROPPED_DATASET_DIR) if folder != 'Negative for intraepithelial lesion' for _, _, files in os.walk(os.path.join(CROPPED_DATASET_DIR, folder)))
 
-    for folder_over in os.listdir(CROPPED_DATASET_DIR):
-        if folder_over != 'Negative for intraepithelial lesion':
-            total_imgs += len(os.listdir(os.path.join(CROPPED_DATASET_DIR, folder_over)))
+    img_counter = 0
+    for folder in os.listdir(CROPPED_DATASET_DIR):
+        if folder == 'Negative for intraepithelial lesion':
+            continue
+        folder_path = os.path.join(CROPPED_DATASET_DIR, folder)
+        for filename in os.listdir(folder_path):
+            img_counter += 1
 
-    image_counter = 0
-    for folder_over in os.listdir(CROPPED_DATASET_DIR):
-        if folder_over != 'Negative for intraepithelial lesion':
-            for filename_over in os.listdir(os.path.join(CROPPED_DATASET_DIR, folder_over)):
-                image_counter += 1
+            # Rotaciona as imagens nos ângulos especificados
+            rotated_images = rotate_image(os.path.join(folder_path, filename), rotating_angles) #Metodo da biblioteca PIL
+            save_images(rotated_images, filename.split(".png")[0], folder)
 
-                # Rotate the image based on the angles defined in the rotating_angles list
-                rotated_images = rotate_image(os.path.join(CROPPED_DATASET_DIR, folder_over, filename_over),
-                                              rotating_angles)
-                __save_images(rotated_images, filename_over.split(".png")[0], folder_over)
+            # Aplica filtros (se houver) e salva as imagens resultantes
+            for filter in filters:
+                if filter == 'gaussian':
+                    img = cv2.imread(os.path.join(folder_path, filename))
+                    noisy_image = im.add_gaussian_noise(img)
+                    save_image(noisy_image, f"{filename.split('.png')[0]}_gaussian", folder)
 
-                # Apply filters in the image based on the filters list
-                for filter in filters:
-                    if filter == 'gaussian':
-                        img = cv2.imread(os.path.join(CROPPED_DATASET_DIR, folder_over, filename_over))
-                        noisy_image = im.add_gaussian_noise(img)
-                        __save_image(noisy_image, f"{filename_over.split('.png')[0]}_gaussian", folder_over)
-                print(f"Oversampled - {image_counter}/{total_imgs}")
-
+            print(f"Oversampled - {img_counter}/{total_imgs}")
 
 def get_cell_nucleus(row):
+    """
+    Extrai a região do núcleo de uma célula em uma imagem.
+    """
     global NUCLEUS_COUNTER
-    # Read an image from the __get_image_path function
-    img = __get_image(row['image_filename'])
 
-    # Get the nucleus_x and nucleus_y values from the dataset
-    nucleus_x = row['nucleus_x']
-    nucleus_y = row['nucleus_y']
-
-    # Define the size of the square to extract
+    img = get_image(row['image_filename'])
+    nucleus_x, nucleus_y = row['nucleus_x'], row['nucleus_y']
     SIZE_SQUARE = 100
 
-    # Calculate the boundaries of the region to extract
-    left = max(0, nucleus_x - int(SIZE_SQUARE / 2))
-    top = max(0, nucleus_y - int(SIZE_SQUARE / 2))
-    right = min(img.shape[1], nucleus_x + int(SIZE_SQUARE / 2))
-    bottom = min(img.shape[0], nucleus_y + int(SIZE_SQUARE / 2))
+    # Define os limites da região a ser extraída
+    left = max(0, nucleus_x - SIZE_SQUARE // 2)
+    top = max(0, nucleus_y - SIZE_SQUARE // 2)
+    right = min(img.shape[1], nucleus_x + SIZE_SQUARE // 2)
+    bottom = min(img.shape[0], nucleus_y + SIZE_SQUARE // 2)
 
-    # Extract the region from the image
     img = img[top:bottom, left:right]
 
-    # Create a black canvas of size 100x100
+    # Cria um canvas preto de tamanho 100x100
     canvas = np.zeros((SIZE_SQUARE, SIZE_SQUARE, 3), dtype=np.uint8)
+    x_offset = max(0, SIZE_SQUARE // 2 - nucleus_x + left)
+    y_offset = max(0, SIZE_SQUARE // 2 - nucleus_y + top)
 
-    # Calculate the position to paste the extracted image onto the canvas
-    x_offset = max(0, int(SIZE_SQUARE / 2) - nucleus_x + left)
-    y_offset = max(0, int(SIZE_SQUARE / 2) - nucleus_y + top)
-
-    # Paste the extracted image onto the canvas
     canvas[y_offset:y_offset + img.shape[0], x_offset:x_offset + img.shape[1]] = img
 
     NUCLEUS_COUNTER += 1
-
     print(f'Loaded - {NUCLEUS_COUNTER}/{NUCLEUS_TOTAL}')
 
     return canvas
 
-
 def crop_images():
+    """
+    Corta as imagens para obter apenas a região do núcleo da célula.
+    """
     global NUCLEUS_TOTAL
 
-    # Read the dataset .csv file
-    df = pd.read_csv(CLASSIFICATION_FILE, sep=',')
+    df = pd.read_csv(CLASSIFICATION_FILE)
+    df = df[df['image_filename'].isin(get_png_jpg_filenames(DATASET_DIR))]
+    df = df[~df['cell_id'].isin([527, 530])]
 
-    # Filter the dataset to only include images that the image_filename is in the list of filenames
-    df = df[df['image_filename'].isin(__get_png_jpg_filenames(DATASET_DIR))]
-    # Don't crop the ones with cell id equals to 530 and 527
-    df = df[df['cell_id'] != 527]
-    df = df[df['cell_id'] != 530]
-
-    # Crop the dataset based on the nucleus_x and nucleus_y columns found in the dataset
     NUCLEUS_TOTAL = len(df)
-    [__save_image(get_cell_nucleus(row), row["cell_id"], row["bethesda_system"]) for index, row in
-     df.iterrows()]
-
+    for _, row in df.iterrows():
+        save_image(get_cell_nucleus(row), row["cell_id"], row["bethesda_system"])
 
 def exclude_black_images(percentage=0.5, classes=None, excluded_classes=None):
-    for folder_exclude in os.listdir(CROPPED_DATASET_DIR):
-        if excluded_classes is not None and folder_exclude in excluded_classes:
+    """
+    Exclui imagens que possuem uma porcentagem de pixels pretos acima de um determinado limiar.
+    """
+    for folder in os.listdir(CROPPED_DATASET_DIR):
+        if excluded_classes and folder in excluded_classes:
             continue
-        if classes is None or folder_exclude in classes:
-            for filename_exclude in os.listdir(os.path.join(CROPPED_DATASET_DIR, folder_exclude)):
-                img = cv2.imread(os.path.join(CROPPED_DATASET_DIR, folder_exclude, filename_exclude))
-                img_gray = im.convert_image_to_gray_scale_cv2(img)
-                histogram = im.generate_image_histogram_gray_scale(img_gray)
-
-                # If the image has more than the previous defined amount of black pixels, remove it
+        if classes is None or folder in classes:
+            folder_path = os.path.join(CROPPED_DATASET_DIR, folder)
+            for filename in os.listdir(folder_path):
+                img = cv2.imread(os.path.join(folder_path, filename))
+                img_gray = im.convert_image_to_gray_scale_cv2(img) #Converte para escla de cinza
+                histogram = im.generate_image_histogram_gray_scale(img_gray) #C Gera um histograma 
                 if histogram[0] > percentage * img_gray.size:
-                    os.remove(os.path.join(CROPPED_DATASET_DIR, folder_exclude, filename_exclude))
-
+                    os.remove(os.path.join(folder_path, filename))
 
 def count_images():
-    amount_of_images = 0
-    binary_counting = [0, 0]
+    """
+    Conta e exibe a quantidade de imagens em cada classe.
+    """
+    total_images = 0
+    binary_count = [0, 0]
 
     for folder in os.listdir(CROPPED_DATASET_DIR):
-        amount_img_this_class = 0
+        folder_path = os.path.join(CROPPED_DATASET_DIR, folder)
+        class_image_count = len(os.listdir(folder_path))
+        total_images += class_image_count
         if folder == 'Negative for intraepithelial lesion':
-            binary_counting[0] = len(os.listdir(os.path.join(CROPPED_DATASET_DIR, folder)))
+            binary_count[0] = class_image_count
         else:
-            binary_counting[1] += len(os.listdir(os.path.join(CROPPED_DATASET_DIR, folder)))
-        amount_img_this_class += len(os.listdir(os.path.join(CROPPED_DATASET_DIR, folder)))
-        amount_of_images += len(os.listdir(os.path.join(CROPPED_DATASET_DIR, folder)))
-        print(f"Amount of images in class {folder}: {amount_img_this_class}")
+            binary_count[1] += class_image_count
+        print(f"Amount of images in class {folder}: {class_image_count}")
 
-    print(f"--x-- Amount of images left: {amount_of_images}")
-    print(f"--x-- Binary count: .0: {binary_counting[0]} | .1: {binary_counting[1]}")
-
+    print(f"--x-- Total images: {total_images}")
+    print(f"--x-- Binary count: 0: {binary_count[0]} | 1: {binary_count[1]}")
 
 def load_images():
-    # 1. Step: Crop the images
+    
+# 1. Step: Crop the images
     crop_images()
 
     count_images()
@@ -233,12 +222,9 @@ def load_images():
     print("\n\n")
     count_images()
 
-
 if __name__ == '__main__':
-    # load_images()
-
     count_images()
 
-    # hara_dataset, labels = generate_haralick_features()
-    # np.save('../static/hara_dataset.npy', hara_dataset)
-    # np.save('../static/labels.npy', labels)
+    hara_dataset, labels = generate_haralick_features()
+    np.save('../static/hara_dataset.npy', hara_dataset)
+    np.save('../static/labels.npy', labels)
