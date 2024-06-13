@@ -58,9 +58,9 @@ def classify_image(image_path, model_path):
     model_binary.eval()
     with torch.no_grad():
         outputs = model_binary(image)
-        _, preds = torch.max(outputs, 1)
+        preds = torch.round(torch.sigmoid(outputs)).cpu().numpy().flatten()
 
-    return labels[preds.item()]
+    return labels[int(preds[0])]
 
 
 def main():

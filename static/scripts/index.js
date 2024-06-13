@@ -308,7 +308,7 @@ document.addEventListener("DOMContentLoaded", function () {
             .then(response => response.json())
             .then(data => {
                 let clazz = parseInt(data.img_class);
-                if (clazz == 0) {
+                if (clazz == 1) {
                     document.getElementById('featuresDiv').innerHTML = '';
                     fillFeaturesDiv(['Class:', 'Negative for intraepithelial lesion']);
                 } else {

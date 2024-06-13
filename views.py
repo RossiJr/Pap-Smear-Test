@@ -17,8 +17,8 @@ def myview(request):
     return render(request, 'index.html')
 
 
-def aboutus(request):
-    return render(request, 'aboutus.html')
+def modelpage(request):
+    return render(request, 'modelpage.html')
 
 
 def upload_image(request):
@@ -157,3 +157,116 @@ def classify_image(request):
         return JsonResponse({'img_class': str(clazz.tolist()[0])})
     else:
         return HttpResponse(status=400)
+
+
+def get_model_classification_report(request):
+    if request.method == 'GET' and 'model' in request.GET:
+        model = request.GET.get('model')
+        if model == 'xgboostBinary':
+            return JsonResponse({
+                'negative': {
+                    'precision': 0.85,
+                    'recall': 0.95,
+                    'f1_score': 0.90,
+                    'support': 849
+                },
+                'positive': {
+                    'precision': 0.74,
+                    'recall': 0.47,
+                    'f1_score': 0.58,
+                    'support': 268
+                }
+            })
+        elif model == 'xgboostMulticlass':
+            return JsonResponse({
+                'ASC_H': {
+                    'precision': 1,
+                    'recall': 0.10,
+                    'f1_score': 0.30,
+                    'support': 17
+                },
+                'ASC_US': {
+                    'precision': 0.67,
+                    'recall': 0.08,
+                    'f1_score': 0.14,
+                    'support': 78
+                },
+                'HSIL': {
+                    'precision': 0.63,
+                    'recall': 0.64,
+                    'f1_score': 0.63,
+                    'support': 58
+                },
+                'LSIL': {
+                    'precision': 0.62,
+                    'recall': 0.10,
+                    'f1_score': 0.17,
+                    'support': 99
+                },
+                'negative': {
+                    'precision': 0.83,
+                    'recall': 0.99,
+                    'f1_score': 0.90,
+                    'support': 849
+                },
+                'SCC': {
+                    'precision': 0.33,
+                    'recall': 0.19,
+                    'f1_score': 0.24,
+                    'support': 16
+                },
+            })
+        elif model == 'efficientNetMulticlass':
+            return JsonResponse({
+                'ASC_H': {
+                    'precision': 0.81,
+                    'recall': 0.80,
+                    'f1_score': 0.80,
+                    'support': 69
+                },
+                'ASC_US': {
+                    'precision': 0.72,
+                    'recall': 0.69,
+                    'f1_score': 0.70,
+                    'support': 283
+                },
+                'HSIL': {
+                    'precision': 0.81,
+                    'recall': 0.90,
+                    'f1_score': 0.85,
+                    'support': 255
+                },
+                'LSIL': {
+                    'precision': 0.83,
+                    'recall': 0.69,
+                    'f1_score': 0.75,
+                    'support': 394
+                },
+                'negative': {
+                    'precision': 0.82,
+                    'recall': 0.96,
+                    'f1_score': 0.89,
+                    'support': 391
+                },
+                'SCC': {
+                    'precision': 0.86,
+                    'recall': 0.70,
+                    'f1_score': 0.77,
+                    'support': 63
+                },
+            })
+        elif model == 'efficientNetBinary':
+            return JsonResponse({
+                'positive': {
+                    'precision': 0.99,
+                    'recall': 0.98,
+                    'f1_score': 0.99,
+                    'support': 1097
+                },
+                'negative': {
+                    'precision': 0.95,
+                    'recall': 0.97,
+                    'f1_score': 0.96,
+                    'support': 358
+                }
+            })

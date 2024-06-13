@@ -14,6 +14,7 @@ NUCLEUS_TOTAL = 0
 
 counter = 0
 
+
 def generate_haralick_features():
     dataset = []
     labels = []
@@ -27,12 +28,14 @@ def generate_haralick_features():
         for filename_hara in os.listdir(os.path.join(CROPPED_DATASET_DIR, folder_hara)):
             img_counter += 1
             img = cv2.imread(os.path.join(CROPPED_DATASET_DIR, folder_hara, filename_hara))
-            haralick = im.haralick_gray_scale(img, distances=[1, 2, 4, 8], angles=[0, np.pi / 4, np.pi / 2, 3 * np.pi / 4])
+            haralick = im.haralick_gray_scale(img, distances=[1, 2, 4, 8],
+                                              angles=[0, np.pi / 4, np.pi / 2, 3 * np.pi / 4])
             dataset.append(haralick)
             labels.append(folder_hara)
             print(f"Haralick - {img_counter}/{total_imgs}")
 
     return dataset, labels
+
 
 def random_remove_images(folder_path, percentage):
     # All files in the folder
@@ -70,7 +73,8 @@ def __save_image(image, cell_id, cell_class):
     global counter
     if not os.path.exists(f'{CROPPED_DATASET_DIR}/{cell_class}'):
         os.makedirs(f'{CROPPED_DATASET_DIR}/{cell_class}')
-    cv2.imwrite(f'{CROPPED_DATASET_DIR}/{cell_class}/{cell_id}.png', image if not isinstance(image, Image.Image) else np.array(image))
+    cv2.imwrite(f'{CROPPED_DATASET_DIR}/{cell_class}/{cell_id}.png',
+                image if not isinstance(image, Image.Image) else np.array(image))
     counter += 1
 
 
@@ -90,7 +94,7 @@ def __get_image(file_name):
 def oversampling():
     # Angles to rotate the image
     rotating_angles = [90, 180]
-    filters = []
+    filters = ['gaussian']
 
     total_imgs = 0
 
@@ -116,7 +120,6 @@ def oversampling():
                         noisy_image = im.add_gaussian_noise(img)
                         __save_image(noisy_image, f"{filename_over.split('.png')[0]}_gaussian", folder_over)
                 print(f"Oversampled - {image_counter}/{total_imgs}")
-
 
 
 def get_cell_nucleus(row):
@@ -218,7 +221,8 @@ def load_images():
     exclude_black_images(percentage=0.3, classes=['Negative for intraepithelial lesion'])
     exclude_black_images(percentage=0.5, excluded_classes=['Negative for intraepithelial lesion'])
 
-    print("\nExcluded images with more than 30% of black pixels in the negative class and 70% in the rest of the classes")
+    print(
+        "\nExcluded images with more than 30% of black pixels in the negative class and 70% in the rest of the classes")
 
     # 3. Step: Oversample the images
     oversampling()
@@ -235,7 +239,6 @@ if __name__ == '__main__':
 
     count_images()
 
-    hara_dataset, labels = generate_haralick_features()
-    np.save('../static/hara_dataset.npy', hara_dataset)
-    np.save('../static/labels.npy', labels)
-
+    # hara_dataset, labels = generate_haralick_features()
+    # np.save('../static/hara_dataset.npy', hara_dataset)
+    # np.save('../static/labels.npy', labels)
